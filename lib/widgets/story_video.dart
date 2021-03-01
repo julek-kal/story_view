@@ -28,11 +28,18 @@ class VideoLoader {
     final fileStream = DefaultCacheManager()
         .getFileStream(this.url, headers: this.requestHeaders);
 
-    fileStream.listen((fileResponse) {
+    fileStream.listen((fileResponse) async {
       if (fileResponse is FileInfo) {
         if (this.videoFile == null) {
           this.state = LoadState.success;
-          this.videoFile = fileResponse.file;
+          if (Platform.isIOS) {
+            videoFile = await fileResponse.file
+                .rename('${fileResponse.file.path.split(".")[0]}.mp4');
+          } else if (Platform.isAndroid) {
+            this.videoFile = fileResponse.file;
+          } else {
+            throw Exception("Not supported platform");
+          }
           onComplete();
         }
       }
