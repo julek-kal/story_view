@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:video_player/video_player.dart';
 
-import '../utils.dart';
 import '../controller/story_controller.dart';
+import '../utils.dart';
 
 class VideoLoader {
   String url;
@@ -25,16 +25,14 @@ class VideoLoader {
       onComplete();
     }
 
-    final fileStream = DefaultCacheManager()
-        .getFileStream(this.url, headers: this.requestHeaders);
+    final fileStream = DefaultCacheManager().getFileStream(this.url, headers: this.requestHeaders);
 
     fileStream.listen((fileResponse) async {
       if (fileResponse is FileInfo) {
         if (this.videoFile == null) {
           this.state = LoadState.success;
           if (Platform.isIOS) {
-            videoFile = await fileResponse.file
-                .rename('${fileResponse.file.path.split(".")[0]}.mp4');
+            videoFile = await fileResponse.file.rename('${fileResponse.file.path.split(".")[0]}.mp4');
           } else if (Platform.isAndroid) {
             this.videoFile = fileResponse.file;
           } else {
@@ -51,13 +49,9 @@ class StoryVideo extends StatefulWidget {
   final StoryController storyController;
   final VideoLoader videoLoader;
 
-  StoryVideo(this.videoLoader, {this.storyController, Key key})
-      : super(key: key ?? UniqueKey());
+  StoryVideo(this.videoLoader, {this.storyController, Key key}) : super(key: key ?? UniqueKey());
 
-  static StoryVideo url(String url,
-      {StoryController controller,
-      Map<String, dynamic> requestHeaders,
-      Key key}) {
+  static StoryVideo url(String url, {StoryController controller, Map<String, dynamic> requestHeaders, Key key}) {
     return StoryVideo(
       VideoLoader(url, requestHeaders: requestHeaders),
       storyController: controller,
@@ -85,60 +79,62 @@ class StoryVideoState extends State<StoryVideo> {
     widget.storyController.pause();
 
     widget.videoLoader.loadVideo(() {
-      if (widget.videoLoader.state == LoadState.success) {
-        this.playerController =
-            VideoPlayerController.file(widget.videoLoader.videoFile);
+      if (mounted) {
+        if (widget.videoLoader.state == LoadState.success) {
+          this.playerController = VideoPlayerController.file(widget.videoLoader.videoFile);
 
-        playerController.initialize().then((v) {
-          setState(() {});
-          widget.storyController.play();
-        });
-
-        if (widget.storyController != null) {
-          _streamSubscription =
-              widget.storyController.playbackNotifier.listen((playbackState) {
-            if (playbackState == PlaybackState.pause) {
-              playerController.pause();
-            } else {
-              playerController.play();
-            }
+          playerController.initialize().then((v) {
+            setState(() {});
+            widget.storyController.play();
           });
+
+          if (widget.storyController != null) {
+            _streamSubscription = widget.storyController.playbackNotifier.listen((playbackState) {
+              if (playbackState == PlaybackState.pause) {
+                playerController.pause();
+              } else {
+                playerController.play();
+              }
+            });
+          }
+        } else {
+          setState(() {});
         }
-      } else {
-        setState(() {});
       }
     });
   }
 
   Widget getContentView() {
-    if (widget.videoLoader.state == LoadState.success &&
-        playerController.value.initialized) {
+    if (widget.videoLoader.state == LoadState.success && playerController.value.initialized) {
+      if (!mounted) {
+        playerController.pause();
+      }
       return Center(
         child: AspectRatio(
           aspectRatio: playerController.value.aspectRatio,
           child: VideoPlayer(playerController),
         ),
       );
+    } else if (widget.videoLoader.state == LoadState.failure || (playerController?.value?.hasError ?? false)) {
+      return Center(
+          child: Text(
+        "Media failed to load.",
+        style: TextStyle(
+          color: Colors.white,
+        ),
+      ));
+    } else {
+      return Center(
+        child: Container(
+          width: 70,
+          height: 70,
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            strokeWidth: 3,
+          ),
+        ),
+      );
     }
-
-    return widget.videoLoader.state == LoadState.loading
-        ? Center(
-            child: Container(
-              width: 70,
-              height: 70,
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                strokeWidth: 3,
-              ),
-            ),
-          )
-        : Center(
-            child: Text(
-            "Media failed to load.",
-            style: TextStyle(
-              color: Colors.white,
-            ),
-          ));
   }
 
   @override
@@ -149,6 +145,12 @@ class StoryVideoState extends State<StoryVideo> {
       width: double.infinity,
       child: getContentView(),
     );
+  }
+
+  @override
+  void deactivate() {
+    playerController?.pause();
+    super.deactivate();
   }
 
   @override
