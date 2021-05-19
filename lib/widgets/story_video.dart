@@ -48,15 +48,14 @@ class VideoLoader {
 class StoryVideo extends StatefulWidget {
   final StoryController storyController;
   final VideoLoader videoLoader;
+  final bool isHLS;
 
-  StoryVideo(this.videoLoader, {this.storyController, Key key}) : super(key: key ?? UniqueKey());
+  StoryVideo(this.videoLoader, {this.storyController, this.isHLS = false, Key key}) : super(key: key ?? UniqueKey());
 
-  static StoryVideo url(String url, {StoryController controller, Map<String, dynamic> requestHeaders, Key key}) {
-    return StoryVideo(
-      VideoLoader(url, requestHeaders: requestHeaders),
-      storyController: controller,
-      key: key,
-    );
+  static StoryVideo url(String url,
+      {StoryController controller, bool isHLS, Map<String, dynamic> requestHeaders, Key key}) {
+    return StoryVideo(VideoLoader(url, requestHeaders: requestHeaders),
+        storyController: controller, key: key, isHLS: isHLS);
   }
 
   @override
@@ -79,13 +78,25 @@ class StoryVideoState extends State<StoryVideo> {
     widget.storyController.pause();
 
     widget.videoLoader.loadVideo(() {
-      if (mounted) {
-        if (widget.videoLoader.state == LoadState.success) {
+      if (widget.videoLoader.state == LoadState.success) {
+        /// if video is HLS, need to load it from network, if is a downloaded file, need to load it from local cache
+        if (widget.isHLS) {
+          this.playerController = VideoPlayerController.network(widget.videoLoader.url);
+        } else {
           this.playerController = VideoPlayerController.file(widget.videoLoader.videoFile);
+        }
+        this.playerController.initialize().then((v) {
+          setState(() {});
+          widget.storyController.play();
+        });
 
-          playerController.initialize().then((v) {
-            setState(() {});
-            widget.storyController.play();
+        if (widget.storyController != null) {
+          _streamSubscription = widget.storyController.playbackNotifier.listen((playbackState) {
+            if (playbackState == PlaybackState.pause) {
+              playerController.pause();
+            } else {
+              playerController.play();
+            }
           });
 
           if (widget.storyController != null) {
