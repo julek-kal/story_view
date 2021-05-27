@@ -98,16 +98,6 @@ class StoryVideoState extends State<StoryVideo> {
               playerController.play();
             }
           });
-
-          if (widget.storyController != null) {
-            _streamSubscription = widget.storyController.playbackNotifier.listen((playbackState) {
-              if (playbackState == PlaybackState.pause) {
-                playerController.pause();
-              } else {
-                playerController.play();
-              }
-            });
-          }
         } else {
           setState(() {});
         }
