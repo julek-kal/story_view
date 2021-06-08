@@ -11,9 +11,9 @@ import '../utils.dart';
 class VideoLoader {
   String url;
 
-  File videoFile;
+  File? videoFile;
 
-  Map<String, dynamic> requestHeaders;
+  Map<String, dynamic>? requestHeaders;
 
   LoadState state = LoadState.loading;
 
@@ -25,7 +25,8 @@ class VideoLoader {
       onComplete();
     }
 
-    final fileStream = DefaultCacheManager().getFileStream(this.url, headers: this.requestHeaders);
+    final fileStream =
+        DefaultCacheManager().getFileStream(this.url, headers: this.requestHeaders as Map<String, String>?);
 
     fileStream.listen((fileResponse) async {
       if (fileResponse is FileInfo) {
@@ -46,14 +47,14 @@ class VideoLoader {
 }
 
 class StoryVideo extends StatefulWidget {
-  final StoryController storyController;
+  final StoryController? storyController;
   final VideoLoader videoLoader;
   final bool isHLS;
 
-  StoryVideo(this.videoLoader, {this.storyController, this.isHLS = false, Key key}) : super(key: key ?? UniqueKey());
+  StoryVideo(this.videoLoader, {this.storyController, this.isHLS = false, Key? key}) : super(key: key ?? UniqueKey());
 
   static StoryVideo url(String url,
-      {StoryController controller, bool isHLS, Map<String, dynamic> requestHeaders, Key key}) {
+      {StoryController? controller, bool isHLS = false, Map<String, dynamic>? requestHeaders, Key? key}) {
     return StoryVideo(VideoLoader(url, requestHeaders: requestHeaders),
         storyController: controller, key: key, isHLS: isHLS);
   }
@@ -65,17 +66,17 @@ class StoryVideo extends StatefulWidget {
 }
 
 class StoryVideoState extends State<StoryVideo> {
-  Future<void> playerLoader;
+  Future<void>? playerLoader;
 
-  StreamSubscription _streamSubscription;
+  StreamSubscription? _streamSubscription;
 
-  VideoPlayerController playerController;
+  VideoPlayerController? playerController;
 
   @override
   void initState() {
     super.initState();
 
-    widget.storyController.pause();
+    widget.storyController!.pause();
 
     widget.videoLoader.loadVideo(() {
       if (widget.videoLoader.state == LoadState.success) {
@@ -83,19 +84,19 @@ class StoryVideoState extends State<StoryVideo> {
         if (widget.isHLS) {
           this.playerController = VideoPlayerController.network(widget.videoLoader.url);
         } else {
-          this.playerController = VideoPlayerController.file(widget.videoLoader.videoFile);
+          this.playerController = VideoPlayerController.file(widget.videoLoader.videoFile!);
         }
-        this.playerController.initialize().then((v) {
+        this.playerController?.initialize().then((v) {
           setState(() {});
-          widget.storyController.play();
+          widget.storyController!.play();
         });
 
         if (widget.storyController != null) {
-          _streamSubscription = widget.storyController.playbackNotifier.listen((playbackState) {
+          _streamSubscription = widget.storyController!.playbackNotifier.listen((playbackState) {
             if (playbackState == PlaybackState.pause) {
-              playerController.pause();
+              playerController!.pause();
             } else {
-              playerController.play();
+              playerController!.play();
             }
           });
         } else {
@@ -106,17 +107,14 @@ class StoryVideoState extends State<StoryVideo> {
   }
 
   Widget getContentView() {
-    if (widget.videoLoader.state == LoadState.success && playerController.value.isInitialized) {
-      if (!mounted) {
-        playerController.pause();
-      }
+    if (widget.videoLoader.state == LoadState.success && playerController!.value.isInitialized) {
       return Center(
         child: AspectRatio(
-          aspectRatio: playerController.value.aspectRatio,
-          child: VideoPlayer(playerController),
+          aspectRatio: playerController!.value.aspectRatio,
+          child: VideoPlayer(playerController!),
         ),
       );
-    } else if (widget.videoLoader.state == LoadState.failure || (playerController?.value?.hasError ?? false)) {
+    } else if (widget.videoLoader.state == LoadState.failure || (playerController?.value.hasError ?? false)) {
       return Center(
           child: Text(
         "Media failed to load.",
