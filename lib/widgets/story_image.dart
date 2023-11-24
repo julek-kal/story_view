@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 import '../controller/story_controller.dart';
@@ -29,8 +29,8 @@ class ImageLoader {
       onComplete();
     }
 
-    final fileStream =
-        DefaultCacheManager().getFileStream(this.url, headers: this.requestHeaders as Map<String, String>?);
+    final fileStream = DefaultCacheManager().getFileStream(this.url,
+        headers: this.requestHeaders as Map<String, String>?);
 
     fileStream.listen(
       (fileResponse) {
@@ -46,13 +46,15 @@ class ImageLoader {
 
         this.state = LoadState.success;
 
-        PaintingBinding.instance!.instantiateImageCodec(imageBytes).then((codec) {
-          this.frames = codec;
-          onComplete();
-        }, onError: (error) {
-          this.state = LoadState.failure;
-          onComplete();
-        });
+        ImmutableBuffer.fromUint8List(imageBytes).then((buffer) =>
+            PaintingBinding.instance.instantiateImageCodecWithSize(buffer).then(
+                (codec) {
+              this.frames = codec;
+              onComplete();
+            }, onError: (error) {
+              this.state = LoadState.failure;
+              onComplete();
+            }));
       },
       onError: (error) {
         this.state = LoadState.failure;
@@ -113,7 +115,8 @@ class StoryImageState extends State<StoryImage> {
     super.initState();
 
     if (widget.controller != null) {
-      this._streamSubscription = widget.controller!.playbackNotifier.listen((playbackState) {
+      this._streamSubscription =
+          widget.controller!.playbackNotifier.listen((playbackState) {
         // for the case of gifs we need to pause/play
         if (widget.imageLoader.frames == null) {
           return;
@@ -160,7 +163,8 @@ class StoryImageState extends State<StoryImage> {
   void forward() async {
     this._timer?.cancel();
 
-    if (widget.controller != null && widget.controller!.playbackNotifier.value == PlaybackState.pause) {
+    if (widget.controller != null &&
+        widget.controller!.playbackNotifier.value == PlaybackState.pause) {
       return;
     }
 
